@@ -1658,10 +1658,11 @@ function Reader({a,T,S,patch,onAction,toastFn,addHighlight,onHighlightTap,onRetr
           h('div',{style:{fontSize:15.5,fontWeight:600,marginBottom:6}},'No offline copy yet'),
           h('div',{style:{fontSize:13.5,color:T.meta,lineHeight:1.5,marginBottom:18}},'This link was saved without its content. Download it now to read offline.'),
           h('button',{onClick:doRetry,disabled:retrying,className:'act95',style:{padding:'12px 26px',borderRadius:11,background:T.fg,color:T.bg,fontSize:15,fontWeight:600,display:'inline-flex',alignItems:'center',gap:8}},retrying?h(Spinner,{T,size:15}):null,retrying?'Downloading…':'Download article'),
-          a.url?h('div',{style:{marginTop:14}},h('a',{href:a.url,target:'_blank',rel:'noopener',style:{color:T.accent,fontSize:14}},'Open original page')):null
+          a.url?h('div',{style:{marginTop:14}},h('a',{href:a.url,target:'_blank',rel:'noopener',style:{color:T.accent,fontSize:15,fontWeight:500,display:'inline-flex',alignItems:'center',gap:5,textDecoration:'none',padding:'8px 12px',border:'1px solid '+T.accent,borderRadius:9}},'Open original page')):null
         ):null,
         a.url&&a.html&&!a.isVideo?h('div',{style:{margin:'34px 0 0',paddingTop:18,borderTop:'1px solid '+T.hair}},
-          h('a',{href:a.url,target:'_blank',rel:'noopener',style:{color:T.accent,fontSize:14}},'View original · '+(a.source||a.url))):null
+          h('a',{href:a.url,target:'_blank',rel:'noopener',style:{color:T.accent,fontSize:15,fontWeight:500,display:'inline-flex',alignItems:'center',gap:5,textDecoration:'none',padding:'8px 12px',border:'1px solid '+T.accent,borderRadius:9,background:'transparent'}},
+            h('span',{style:{display:'flex'}},Icons.globe(15)),'View original'+(a.source?' · '+a.source:''))):null
       )),
     selbar?h('div',{className:'fdin',style:{position:'fixed',top:selbar.top,left:selbar.left,transform:'translateX(-50%)',zIndex:66,display:'flex',background:'#26262a',borderRadius:11,overflow:'hidden',boxShadow:'0 6px 24px rgba(0,0,0,.35)'}},
       [['Highlight','hl'],['Note','note'],['Copy','copy'],['Share','share']].map(([l,k],i)=>h('button',{key:k,onClick:()=>selAct(k),style:{padding:'11px 14px',color:'#f2f2f3',fontSize:13.5,fontWeight:500,borderLeft:i?'1px solid #3a3a3f':'none'}},l))):null,
@@ -3590,7 +3591,9 @@ function App(){
   }else{
     header=h('div',{style:{display:'flex',alignItems:'center',padding:'6px 8px',flexShrink:0,position:'relative'}},
       headerBtn(scope.type==='tag'?Icons.back(23):Icons.menu(23),()=>scope.type==='tag'?setScope({type:'tags'}):setSidebar(true)),
-      h('button',{onClick:goHome,className:'act90','aria-label':'Go to top of Home',style:{marginLeft:2,padding:'2px 6px',textAlign:'left',fontFamily:WORDMARK,fontSize:21,fontWeight:600,letterSpacing:'.2px',color:T.fg,background:'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'52%'}},scopeTitle(scope,data.folders)),
+      h('button',{onClick:goHome,className:'act90','aria-label':'Go to top of Home',style:{marginLeft:2,padding:'2px 6px',display:'flex',alignItems:'center',gap:6,color:T.fg,background:'none',overflow:'hidden',maxWidth:'52%',flexShrink:1}},
+        h('span',{style:{display:'flex',flexShrink:0,color:T.accent}},Icons.globe(24)),
+        h('span',{style:{fontFamily:WORDMARK,fontSize:21,fontWeight:600,letterSpacing:'.2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},scopeTitle(scope,data.folders))),
       h('div',{style:{flex:1}}),
       headerBtn(Icons.ai(22),()=>setAiOpen({})),
       headerBtn(Icons.phone(22),()=>{setScope({type:'brief'});setQuery('')}),
