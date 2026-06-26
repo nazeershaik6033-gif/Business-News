@@ -3107,7 +3107,7 @@ function SettingsSheet({T,S,data,voices,update,usageKB,onExport,onImport,onClear
 /* ============================== list helpers ============================== */
 function inScope(a,scope){
   switch(scope.type){
-    case 'home':return !a.archived;
+    case 'home':return !a.archived&&!a.folderId;
     case 'liked':return a.liked;
     case 'archive':return a.archived;
     case 'videos':return a.isVideo&&!a.archived;
@@ -3551,14 +3551,11 @@ function App(){
     if(q){arr=data.articles.filter(a=>((a.title||'')+' '+(a.author||'')+' '+(a.source||'')+' '+a.tags.join(' ')+' '+(a.text||'')).toLowerCase().includes(q))}
     else{
       arr=data.articles.filter(a=>inScope(a,scope));
-      // Items assigned to a folder are always visible on Home — they bypass type/read filters
-      // because placing something in a folder is an explicit "keep this accessible" signal.
-      const folderPinned=scope.type==='home'?new Set(arr.filter(a=>a.folderId).map(a=>a.id)):new Set();
-      if(S.typeFilter==='article')arr=arr.filter(a=>folderPinned.has(a.id)||(!a.isVideo&&!a.isPost));
-      else if(S.typeFilter==='video')arr=arr.filter(a=>folderPinned.has(a.id)||a.isVideo);
-      else if(S.typeFilter==='post')arr=arr.filter(a=>folderPinned.has(a.id)||a.isPost);
-      if(S.readFilter==='unread')arr=arr.filter(a=>folderPinned.has(a.id)||(a.progress||0)<0.97);
-      else if(S.readFilter==='read')arr=arr.filter(a=>folderPinned.has(a.id)||(a.progress||0)>=0.97);
+      if(S.typeFilter==='article')arr=arr.filter(a=>!a.isVideo&&!a.isPost);
+      else if(S.typeFilter==='video')arr=arr.filter(a=>a.isVideo);
+      else if(S.typeFilter==='post')arr=arr.filter(a=>a.isPost);
+      if(S.readFilter==='unread')arr=arr.filter(a=>(a.progress||0)<0.97);
+      else if(S.readFilter==='read')arr=arr.filter(a=>(a.progress||0)>=0.97);
     }
     return sortArticles(arr,S.sort);
   },[data,scope,q,S.sort,S.typeFilter,S.readFilter]);
