@@ -2257,6 +2257,11 @@ function BriefView({T,brief,onBrief,toastFn}){
   // Per-group collapse for the brief; persisted so it survives reloads.
   const [collapsed,setCollapsed]=useState(()=>{try{return new Set(JSON.parse(localStorage.getItem('insta_brief_collapsed')||'[]'))}catch(e){return new Set()}});
   const toggleCollapse=key=>setCollapsed(prev=>{const n=new Set(prev);n.has(key)?n.delete(key):n.add(key);try{localStorage.setItem('insta_brief_collapsed',JSON.stringify([...n]))}catch(e){}return n});
+  const [reorderMode,setReorderMode]=useState(false);
+  const [dragging,setDragging]=useState(null);
+  const [dragOver,setDragOver]=useState(null);
+  const touchDragRef=useRef({active:false,id:null});
+  const reorderGroups=(fromId,toId)=>{if(!fromId||!toId||fromId===toId)return;onBrief(b=>{const gs=[...(b.groups||[])];const fi=gs.findIndex(g=>g.id===fromId);const ti=gs.findIndex(g=>g.id===toId);if(fi<0||ti<0)return b;const[moved]=gs.splice(fi,1);gs.splice(ti,0,moved);return{...b,groups:gs}})};
   const [briefLog,setBriefLog]=useState(loadBriefLog);
   useEffect(()=>{
     if(!win.key)return;
@@ -2337,13 +2342,36 @@ function BriefView({T,brief,onBrief,toastFn}){
     onEntryToggle:url=>toggle(url),
     collapsed:collapsed.has('ch_'+it.id),
     onToggleCollapse:()=>toggleCollapse('ch_'+it.id)});
-  const sectionHead=(g,list)=>{const key=g?g.id:'_other';const isOpen=!collapsed.has(key);const groupNew=win.future?0:list.reduce((n,it)=>n+(hasFeed(it)?newEntries(it).length:0),0);const doneInGrp=list.filter(i=>doneIds.includes(i.id)).length;return h('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'20px 2px 8px'}},
-    h('button',{onClick:()=>toggleCollapse(key),className:'act90','aria-label':isOpen?'Collapse group':'Expand group',style:{display:'flex',color:T.sub,padding:4,borderRadius:6,transform:isOpen?'rotate(90deg)':'none',transition:'transform 160ms'}},Icons.chevR(14)),
-    h('div',{onClick:()=>toggleCollapse(key),style:{flex:1,fontSize:13,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:T.meta,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}},g?g.name:'Other'),
-    groupNew?h('span',{style:{fontSize:10,fontWeight:700,color:'#fff',background:'#d4564a',borderRadius:999,padding:'2px 7px',flexShrink:0}},groupNew+' new'):h('span',{style:{fontSize:11,color:T.sub,flexShrink:0}},doneInGrp+'/'+list.length),
-    g?h('button',{onClick:()=>{setGName(g.name);setGrp({rename:g.id})},className:'act90',style:{display:'flex',color:T.sub,padding:4,borderRadius:6}},Icons.pencil(15)):null,
-    g?h('button',{onClick:()=>{onBrief(b=>({...b,items:b.items.map(i=>i.groupId===g.id?{...i,groupId:null}:i),groups:b.groups.filter(x=>x.id!==g.id)}))},className:'act90',style:{display:'flex',color:T.danger,padding:4,borderRadius:6}},Icons.trash(15)):null,
-    h('button',{onClick:()=>setEdit({groupId:g?g.id:null,kind:'link',name:'',url:''}),className:'act90',style:{display:'flex',color:T.accent,padding:4,borderRadius:6}},Icons.plus(18)));};
+  const sectionHead=(g,list)=>{
+    const key=g?g.id:'_other';const isOpen=!collapsed.has(key);
+    const groupNew=win.future?0:list.reduce((n,it)=>n+(hasFeed(it)?newEntries(it).length:0),0);
+    const doneInGrp=list.filter(i=>doneIds.includes(i.id)).length;
+    const isDragOver=reorderMode&&g&&dragOver===g.id&&dragging!==g.id;
+    const isDragging=reorderMode&&g&&dragging===g.id;
+    return h('div',{
+      'data-gid':g?g.id:undefined,
+      draggable:!!(reorderMode&&g),
+      onDragStart:reorderMode&&g?()=>setDragging(g.id):undefined,
+      onDragOver:reorderMode&&g?e=>{e.preventDefault();if(dragOver!==g.id)setDragOver(g.id)}:undefined,
+      onDragLeave:reorderMode&&g?e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragOver(null)}:undefined,
+      onDrop:reorderMode&&g?e=>{e.preventDefault();reorderGroups(dragging,g.id);setDragging(null);setDragOver(null)}:undefined,
+      onDragEnd:reorderMode&&g?()=>{setDragging(null);setDragOver(null)}:undefined,
+      style:{display:'flex',alignItems:'center',gap:6,padding:'20px 2px 8px',
+        opacity:isDragging?0.35:1,
+        background:isDragOver?T.card:'transparent',
+        borderRadius:isDragOver?8:0,
+        transition:'background 120ms,opacity 120ms'}},
+      reorderMode&&g?h('div',{
+        onTouchStart:e=>{e.stopPropagation();touchDragRef.current={active:true,id:g.id};setDragging(g.id)},
+        style:{display:'flex',color:T.sub,padding:'4px 2px',cursor:'grab',touchAction:'none',flexShrink:0}
+      },Icons.menu(16)):null,
+      h('button',{onClick:()=>toggleCollapse(key),className:'act90','aria-label':isOpen?'Collapse group':'Expand group',style:{display:'flex',color:T.sub,padding:4,borderRadius:6,transform:isOpen?'rotate(90deg)':'none',transition:'transform 160ms'}},Icons.chevR(14)),
+      h('div',{onClick:()=>toggleCollapse(key),style:{flex:1,fontSize:13,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:T.meta,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'pointer'}},g?g.name:'Other'),
+      groupNew?h('span',{style:{fontSize:10,fontWeight:700,color:'#fff',background:'#d4564a',borderRadius:999,padding:'2px 7px',flexShrink:0}},groupNew+' new'):h('span',{style:{fontSize:11,color:T.sub,flexShrink:0}},doneInGrp+'/'+list.length),
+      g?h('button',{onClick:()=>{setGName(g.name);setGrp({rename:g.id})},className:'act90',style:{display:'flex',color:T.sub,padding:4,borderRadius:6}},Icons.pencil(15)):null,
+      g?h('button',{onClick:()=>{onBrief(b=>({...b,items:b.items.map(i=>i.groupId===g.id?{...i,groupId:null}:i),groups:b.groups.filter(x=>x.id!==g.id)}))},className:'act90',style:{display:'flex',color:T.danger,padding:4,borderRadius:6}},Icons.trash(15)):null,
+      h('button',{onClick:()=>setEdit({groupId:g?g.id:null,kind:'link',name:'',url:''}),className:'act90',style:{display:'flex',color:T.accent,padding:4,borderRadius:6}},Icons.plus(18)));
+  };
   // Brief history as a collapsible section (open when '_history' is in the set).
   const histMissed=briefLog.reduce((n,e)=>n+e.items.reduce((m,i)=>m+i.entries.length,0),0);
   const historySection=()=>{const isOpen=collapsed.has('_history');return h('div',{style:{marginTop:8,borderTop:'1px solid '+T.hair}},
@@ -2386,12 +2414,17 @@ function BriefView({T,brief,onBrief,toastFn}){
       total&&!win.future?h('div',{style:{marginTop:8,height:3,borderRadius:3,background:T.hair,overflow:'hidden'}},
         h('div',{style:{width:(total?doneN/total*100:0)+'%',height:'100%',background:T.accent,borderRadius:3,transition:'width 0.3s'}})):null),
     h('div',{style:{padding:'2px 14px 0'}},
+      h('div',{style:{display:'flex',gap:8,marginBottom:8}},
+        h('button',{onClick:()=>{setGName('');setGrp({})},className:'act98',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 12px',borderRadius:12,border:'1px solid '+T.hair,color:T.sub,fontSize:13,fontWeight:500}},Icons.plus(15),'New group'),
+        h('button',{onClick:()=>setEdit({groupId:groups[0]?groups[0].id:null,kind:'link',name:'',url:''}),className:'act98',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'10px 12px',borderRadius:12,background:T.card,color:T.fg,fontSize:13,fontWeight:600}},Icons.plus(15),'Add item'),
+        h('button',{onClick:()=>{setReorderMode(m=>!m);setDragging(null);setDragOver(null)},className:'act90','aria-label':'Reorder groups',style:{display:'flex',alignItems:'center',justifyContent:'center',padding:'10px',borderRadius:12,background:reorderMode?T.accent:'transparent',color:reorderMode?T.bg:T.sub,border:'1px solid '+(reorderMode?T.accent:T.hair),flexShrink:0}},Icons.sort(17))),
       win.future?h('div',{style:{fontSize:13,color:T.sub,padding:'14px 4px',lineHeight:1.5}},'This routine begins at '+fmtClock(curSlot.time)+'. New content since your last check will appear here then.'):null,
+      h('div',{
+        onTouchMove:e=>{if(!touchDragRef.current.active)return;e.preventDefault();const t=e.touches[0];const el=document.elementFromPoint(t.clientX,t.clientY);const row=el&&el.closest('[data-gid]');if(row&&row.dataset.gid)setDragOver(row.dataset.gid)},
+        onTouchEnd:()=>{if(!touchDragRef.current.active)return;if(dragOver&&dragOver!==touchDragRef.current.id)reorderGroups(touchDragRef.current.id,dragOver);touchDragRef.current={active:false,id:null};setDragging(null);setDragOver(null)}
+      },
       total?sections.map(({g,list})=>h('div',{key:g?g.id:'_other'},sectionHead(g,list),collapsed.has(g?g.id:'_other')?null:(list.length?list.map(itemRow):h('div',{style:{fontSize:13,color:T.sub,padding:'8px 4px 12px'}},'Nothing here yet — tap + to add.'))))
-        :h(EmptyState,{T,icon:Icons.sun(40),title:'My Routine',sub:'Group the social apps, websites and YouTube channels you go through each day, then check them off.'}),
-      h('div',{style:{display:'flex',gap:10,marginTop:20}},
-        h('button',{onClick:()=>{setGName('');setGrp({})},className:'act98',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'12px',borderRadius:12,border:'1px solid '+T.hair,color:T.sub,fontSize:13.5,fontWeight:500}},Icons.plus(16),'New group'),
-        h('button',{onClick:()=>setEdit({groupId:groups[0]?groups[0].id:null,kind:'link',name:'',url:''}),className:'act98',style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:7,padding:'12px',borderRadius:12,background:T.card,color:T.fg,fontSize:13.5,fontWeight:600}},Icons.plus(16),'Add item')),
+        :h(EmptyState,{T,icon:Icons.sun(40),title:'My Routine',sub:'Group the social apps, websites and YouTube channels you go through each day, then check them off.'})),
       historySection(),
       h('div',{style:{height:'calc(24px + '+SAFE_B+')'}})),
 
