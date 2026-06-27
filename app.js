@@ -2847,7 +2847,6 @@ function Browser({T,sites,onSites,folders,onFolders,vault,onChangeVault,session,
   const [input,setInput]=useState('');
   const [vaultOpen,setVaultOpen]=useState(false);
   const [addForm,setAddForm]=useState(null); // {name,url,folderId}
-  const [openFolder,setOpenFolder]=useState(null); // folderId being viewed
   const [actSite,setActSite]=useState(null); // bookmark long-press action sheet
   const [moveSite,setMoveSite]=useState(null); // move-to-folder sheet
   const [editSite,setEditSite]=useState(null); // rename bookmark sheet
@@ -2863,36 +2862,21 @@ function Browser({T,sites,onSites,folders,onFolders,vault,onChangeVault,session,
   const tile=st=>h(BookmarkTile,{key:st.id,T,site:st,onOpen:()=>open(st.url),onLongPress:()=>setActSite(st)});
   const grid=children=>h('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14}},children);
   const loose=sites.filter(s=>!s.folderId||!folders.some(f=>f.id===s.folderId));
-  const curFolder=openFolder?folders.find(f=>f.id===openFolder):null;
 
-  let body;
-  if(curFolder){
-    const fSites=sites.filter(s=>s.folderId===curFolder.id);
-    body=h('div',null,
-      h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'0 2px 14px'}},
-        h('button',{onClick:()=>setOpenFolder(null),className:'act90',style:{display:'flex',color:T.fg}},Icons.back(20)),
-        h('div',{style:{fontSize:16,fontWeight:600,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},curFolder.name),
-        h('button',{onClick:()=>{setFName(curFolder.name);setMkFolder({rename:curFolder.id})},className:'act90',style:{display:'flex',color:T.sub}},Icons.pencil(18)),
-        h('button',{onClick:()=>{onSites(list=>list.map(s=>s.folderId===curFolder.id?{...s,folderId:null}:s));onFolders(list=>list.filter(f=>f.id!==curFolder.id));setOpenFolder(null)},className:'act90',style:{display:'flex',color:T.danger}},Icons.trash(18))),
-      grid([...fSites.map(tile),addBtn(()=>setAddForm({name:'',url:'',folderId:curFolder.id}))]),
-      fSites.length?null:h('div',{style:{fontSize:12.5,color:T.sub,marginTop:18,textAlign:'center',lineHeight:1.5}},'No bookmarks here yet. Tap Add, or long-press a bookmark elsewhere and move it in.'));
-  }else{
-    body=h('div',null,
-      folders.length?h('div',null,
-        h('div',{style:lblS},'Folders'),
-        h('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:20}},
-          folders.map(f=>{const n=sites.filter(s=>s.folderId===f.id).length;
-            return h('button',{key:f.id,onClick:()=>setOpenFolder(f.id),className:'act96',style:{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:12,background:T.card,textAlign:'left',minWidth:0}},
-              h('span',{style:{color:T.accent,display:'flex',flexShrink:0}},Icons.folder(22)),
-              h('span',{style:{minWidth:0}},
-                h('span',{style:{display:'block',fontSize:14,fontWeight:600,color:T.fg,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},f.name),
-                h('span',{style:{display:'block',fontSize:11.5,color:T.sub}},n+(n===1?' site':' sites'))));
-          }))):null,
-      h('div',{style:lblS},'Bookmarks'),
-      grid([...loose.map(tile),addBtn(()=>setAddForm({name:'',url:'',folderId:null}))]),
-      h('button',{onClick:()=>{setFName('');setMkFolder({})},className:'act98',style:{display:'flex',alignItems:'center',gap:8,marginTop:18,padding:'11px 14px',borderRadius:11,border:'1px dashed '+T.hair,color:T.fg,fontSize:14,fontWeight:500}},Icons.plus(18),'New folder'),
-      h('div',{style:{fontSize:12,color:T.sub,marginTop:16,lineHeight:1.5}},'Long-press a bookmark to rename, move to a folder, or delete. Tapping a site or entering an address opens it in your browser.'));
-  }
+  const body=h('div',null,
+    folders.map(f=>{
+      const fSites=sites.filter(s=>s.folderId===f.id);
+      return h('div',{key:f.id,style:{marginBottom:20}},
+        h('div',{style:{display:'flex',alignItems:'center',marginBottom:8}},
+          h('div',{style:{fontSize:11.5,fontWeight:700,letterSpacing:'.06em',textTransform:'uppercase',color:T.sub,flex:1}},f.name),
+          h('button',{onClick:()=>{setFName(f.name);setMkFolder({rename:f.id})},className:'act90',style:{display:'flex',color:T.sub}},Icons.pencil(15)),
+          h('button',{onClick:()=>{onSites(list=>list.map(s=>s.folderId===f.id?{...s,folderId:null}:s));onFolders(list=>list.filter(x=>x.id!==f.id))},className:'act90',style:{display:'flex',color:T.danger}},Icons.trash(15))),
+        grid([...fSites.map(tile),addBtn(()=>setAddForm({name:'',url:'',folderId:f.id}))]));
+    }),
+    h('div',{style:lblS},'Bookmarks'),
+    grid([...loose.map(tile),addBtn(()=>setAddForm({name:'',url:'',folderId:null}))]),
+    h('button',{onClick:()=>{setFName('');setMkFolder({})},className:'act98',style:{display:'flex',alignItems:'center',gap:8,marginTop:18,padding:'11px 14px',borderRadius:11,border:'1px dashed '+T.hair,color:T.fg,fontSize:14,fontWeight:500}},Icons.plus(18),'New folder'),
+    h('div',{style:{fontSize:12,color:T.sub,marginTop:16,lineHeight:1.5}},'Long-press a bookmark to rename, move to a folder, or delete. Tapping a site or entering an address opens it in your browser.'));
 
 
   return h('div',{className:'fdin',style:{position:'fixed',inset:0,zIndex:90,background:T.bg,color:T.fg,display:'flex',flexDirection:'column',fontFamily:UIF}},
@@ -2927,7 +2911,7 @@ function Browser({T,sites,onSites,folders,onFolders,vault,onChangeVault,session,
           style:{width:'100%',border:'1px solid '+T.hair,background:T.card,color:T.fg,borderRadius:10,padding:'12px 13px',fontSize:15,marginBottom:12}}),
         h('button',{onClick:()=>{const nm=fName.trim()||'New folder';
             if(mkFolder.rename){onFolders(list=>list.map(f=>f.id===mkFolder.rename?{...f,name:nm}:f))}
-            else{const id=uid();onFolders(list=>list.concat([{id,name:nm}]));if(mkFolder.forSite)setSiteFolder(mkFolder.forSite,id);else setOpenFolder(id)}
+            else{const id=uid();onFolders(list=>list.concat([{id,name:nm}]));if(mkFolder.forSite)setSiteFolder(mkFolder.forSite,id)}
             setMkFolder(null)},className:'act96',style:{width:'100%',padding:'13px',borderRadius:11,background:T.fg,color:T.bg,fontSize:15,fontWeight:600}},mkFolder.rename?'Rename':'Create'))):null,
 
     editSite?h(Sheet,{T,title:'Edit bookmark',onClose:()=>setEditSite(null)},
@@ -2944,7 +2928,7 @@ function Browser({T,sites,onSites,folders,onFolders,vault,onChangeVault,session,
           style:{width:'100%',border:'1px solid '+T.hair,background:T.card,color:T.fg,borderRadius:10,padding:'12px 13px',fontSize:15,marginBottom:10}}),
         h('input',{value:addForm.url,onChange:e=>setAddForm({...addForm,url:e.target.value}),placeholder:'https://…',inputMode:'url',enterKeyHint:'done',autoCapitalize:'none',autoCorrect:'off',spellCheck:false,
           style:{width:'100%',border:'1px solid '+T.hair,background:T.card,color:T.fg,borderRadius:10,padding:'12px 13px',fontSize:15,marginBottom:12}}),
-        h('button',{onClick:()=>{const u=normalizeUrl(addForm.url);if(!u)return;onSites(list=>list.concat([{id:uid(),name:addForm.name.trim()||domainOf(u),url:u,folderId:addForm.folderId||null}]));setAddForm(null)},className:'act96',style:{width:'100%',padding:'13px',borderRadius:11,background:T.fg,color:T.bg,fontSize:15,fontWeight:600}},'Add'+(curFolder?' to '+curFolder.name:'')))):null,
+        h('button',{onClick:()=>{const u=normalizeUrl(addForm.url);if(!u)return;onSites(list=>list.concat([{id:uid(),name:addForm.name.trim()||domainOf(u),url:u,folderId:addForm.folderId||null}]));setAddForm(null)},className:'act96',style:{width:'100%',padding:'13px',borderRadius:11,background:T.fg,color:T.bg,fontSize:15,fontWeight:600}},'Add bookmark'))):null,
 
 
     vaultOpen?h(Sheet,{T,onClose:()=>setVaultOpen(false),title:'Passwords',z:95},
